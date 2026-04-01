@@ -1,0 +1,35 @@
+{
+  "id": "epic-rolls-ua",
+  "title": "Epic Rolls UA",
+  "description": "Cinematic group rolls with live results for all players.",
+  "version": "3.0.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "13",
+    "maximum": "13"
+  },
+  "authors": [
+    {
+      "name": "Ukrainian TTRPG Community"
+    }
+  ],
+  "esmodules": [
+    "scripts/epic-rolls-ua.mjs"
+  ],
+  "styles": [
+    "styles/epic-rolls-ua.css"
+  ],
+  "languages": [
+    {
+      "lang": "uk",
+      "name": "Українська",
+      "path": "lang/uk.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "socket": true
+}

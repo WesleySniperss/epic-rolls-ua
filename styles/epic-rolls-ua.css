@@ -1,0 +1,1019 @@
+/* ═══════════════════════════════════════════════════
+   КНОПКА В ЛІВОМУ ТУЛБАРІ — fixed position під іконками
+   ═══════════════════════════════════════════════════ */
+
+
+
+/* ══════════════════════════════════════════════════
+   Епічні Кидки UA v12 — точно як на скріншоті
+   ══════════════════════════════════════════════════ */
+
+/* ══ СЦЕНА — обгортка ════════════════════════════ */
+#eru-scene {
+  position: fixed; inset: 0;
+  z-index: 60;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+/* Blur на весь фон за банером */
+#eru-scene::before {
+  content: "";
+  position: absolute; inset: 0;
+  backdrop-filter: blur(6px);
+  background: rgba(0,0,0,.45);
+  z-index: -1;
+  pointer-events: none;
+}
+#eru-scene.eru--in  { opacity: 1; }
+#eru-scene.eru--out { opacity: 0; transition: opacity .5s ease; }
+
+@keyframes eru-shake {
+  0%,100%{transform:none}
+  10%{transform:translate(-7px,4px)rotate(-.4deg)}
+  22%{transform:translate(7px,-4px)rotate(.4deg)}
+  34%{transform:translate(-5px,2px)rotate(-.2deg)}
+  46%{transform:translate(5px,-2px)rotate(.2deg)}
+  58%{transform:translate(-3px,1px)}
+  70%{transform:translate(3px,-1px)}
+  82%{transform:translate(-1px,.5px)}
+  92%{transform:translate(1px,0)}
+}
+#eru-scene.eru--shake { animation: eru-shake .58s ease both; }
+
+/* ══ БАНЕР — реальне зображення + колір per-category ══ */
+.eru-banner {
+  pointer-events: all;
+  position: relative; width: 100%;
+  min-height: 230px;
+  overflow: hidden;
+  /* Fallback якщо зображення не завантажилось */
+  background: #3a0a0a;
+  animation: eru-banner-in .5s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes eru-banner-in {
+  from { transform: translateX(110%) scaleY(.88); opacity: 0; }
+  55%  { transform: translateX(-1.5%) scaleY(1.04); opacity: 1; }
+  75%  { transform: translateX(.4%) scaleY(.98); }
+  100% { transform: none; }
+}
+
+/* Шар 1: Зображення банера — встановлюється через JS inline style */
+.eru-banner::before {
+  content: "";
+  position: absolute; inset: 0;
+  /* background-image задається через JS: el.style.backgroundImage */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: hue-rotate(var(--hue, 0deg)) saturate(1.4) brightness(.82);
+  z-index: 0;
+}
+
+/* Шар 2: Кольоровий tint overlay per-category — БЕЗ mix-blend-mode */
+.eru-banner::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 35%, rgba(0,0,0,.65) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.55) 0%, transparent 25%, transparent 75%, rgba(0,0,0,.55) 100%);
+  z-index: 1;
+}
+
+/* Шар 2b: Кольоровий tint — окремий елемент */
+.eru-band-tint {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  opacity: .35;
+  mix-blend-mode: color;
+}
+
+/* Шар 3: Glow ефект по центру знизу */
+.eru-band-inner::before {
+  content: "";
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60%;
+  background: radial-gradient(ellipse 80% 80% at 50% 100%, var(--glow, rgba(255,80,80,.25)), transparent);
+  z-index: 0; pointer-events: none;
+}
+
+/* overflow visible so large final text is not clipped */
+.eru-banner--success,
+.eru-banner--fail {
+  overflow: visible;
+}
+
+/* ── SOUND TOGGLE — corner button in banner ───── */
+.eru-sound-toggle {
+  position: absolute; top: 8px; right: 10px; z-index: 20;
+  width: 26px; height: 26px;
+  background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 50%; cursor: pointer; pointer-events: all;
+  font-size: 13px; line-height: 1;
+  color: rgba(255,255,255,.75);
+  transition: background .15s, border-color .15s, color .15s;
+  padding: 0;
+}
+.eru-sound-toggle::before { content: "♪"; }
+.eru-sound-toggle:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.4); color: #fff; }
+/* Muted state */
+.eru-sound-toggle--off { border-color: rgba(255,80,60,.5); color: rgba(255,80,60,.85); }
+.eru-sound-toggle--off::before { content: "✕"; font-size: 11px; }
+
+/* Успіх/провал — tint міняється */
+.eru-banner--success::after {
+  background: rgba(20,160,60,.55),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,.6) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, transparent 22%, transparent 78%, rgba(0,0,0,.5) 100%);
+}
+.eru-banner--fail::after {
+  background: rgba(200,20,20,.55),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,.6) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, transparent 22%, transparent 78%, rgba(0,0,0,.5) 100%);
+}
+
+/* Шар з зображенням — окремий div, встановлюється через JS */
+.eru-band-bg-img {
+  position: absolute; inset: 0; z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: hue-rotate(var(--hue, 0deg)) saturate(1.4) brightness(.82);
+}
+/* Видаляємо стару ::before яка більше не потрібна */
+.eru-banner::before { display: none; }
+
+.eru-band-inner {
+  position: relative; z-index: 3;
+  display: flex; flex-direction: column; align-items: center;
+  padding: .5rem 2rem .6rem; gap: .4rem;
+  min-height: 230px; justify-content: center;
+}
+
+
+  to   { opacity:1; transform:none; }
+}
+
+/* ══ FINAL TEXT — fullscreen overlay ══════ */
+.eru-final-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 25; pointer-events: none;
+}
+.eru-final-word {
+  font-family: var(--font-primary, "Signika", "Palatino Linotype", serif);
+  font-size: clamp(8.1rem, 18vw, 16.2rem);
+  font-weight: 900;
+  font-style: normal;
+  letter-spacing: .12em;
+  text-align: center;
+  line-height: .88;
+  -webkit-text-stroke: 5px rgba(0,0,0,1);
+  paint-order: stroke fill;
+  animation: eru-final-slam .55s cubic-bezier(.175,.885,.32,1.275) both;
+}
+@keyframes eru-final-slam {
+  from { transform: scale(.06) rotate(-6deg); opacity: 0; }
+  55%  { transform: scale(1.07) rotate(1.5deg); opacity: 1; }
+  78%  { transform: scale(.97) rotate(-.5deg); }
+  to   { transform: none; }
+}
+.eru-final--pass .eru-final-word {
+  color: #ffffff;
+  text-shadow:
+    0 0 12px rgba(80,255,80,1),
+    0 0 50px rgba(40,200,60,.55),
+    4px 6px 0 rgba(0,0,0,1),
+    2px 3px 0 rgba(0,60,0,1);
+}
+.eru-final--fail .eru-final-word {
+  color: #ffffff;
+  text-shadow:
+    0 0 12px rgba(255,70,30,1),
+    0 0 50px rgba(200,20,5,.55),
+    4px 6px 0 rgba(0,0,0,1),
+    2px 3px 0 rgba(60,0,0,1);
+}
+.eru-final--tie .eru-final-word {
+  color: #ffffff;
+  text-shadow:
+    0 0 12px rgba(255,220,40,1),
+    0 0 50px rgba(200,160,0,.55),
+    4px 6px 0 rgba(0,0,0,1),
+    2px 3px 0 rgba(50,35,0,1);
+}
+
+/* ══ КАРТКИ — точно як на скріншоті ═══════════ */
+.eru-band-cards {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  align-items: flex-end; gap: 10px;
+  width: 100%; padding: 0 0 38px 0;
+}
+
+/* Картка: ~120px ширина, портрет на всю висоту */
+.eru-card {
+  display: flex; flex-direction: column; align-items: center;
+  width: 120px; position: relative;
+  opacity: 0; transform: translateX(50px) scale(.9);
+  transition: opacity .35s ease, transform .35s cubic-bezier(.22,1,.36,1);
+}
+.eru-card.eru-card--in { opacity:1; transform:none; }
+.eru-card.eru-card--result {
+  animation: eru-card-result .38s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes eru-card-result {
+  from{transform:translateX(30px) scale(.92);}
+  to{transform:none;}
+}
+
+/* Ім'я над карткою */
+.eru-card-name-top {
+  font-size: .6rem; color: rgba(255,255,255,.75);
+  text-align: center; line-height: 1.2;
+  word-break: break-word; max-width: 120px;
+  margin-bottom: .2rem;
+  text-shadow: 0 1px 4px rgba(0,0,0,1);
+}
+
+/* Портрет — рівно як на скріншоті: рамка, тінь */
+.eru-card-portrait {
+  width: 120px; height: 160px;
+  overflow: hidden; position: relative;
+  border: 2px solid rgba(200,160,60,.5);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.8), 0 0 0 1px rgba(0,0,0,.5);
+}
+.eru-card-portrait img {
+  width:100%; height:100%; object-fit:cover; object-position:top; display:block;
+}
+
+/* Монета — позиціонована поверх нижнього краю картки */
+.eru-coin-wrap {
+  position: absolute;
+  bottom: -36px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  z-index: 2;
+}
+.eru-side-btns {
+  display: flex; gap: 4px;
+}
+
+/* Кругла монета d20 — 52px як на скріншоті */
+.eru-coin {
+  width: 72px; height: 72px;
+  position: relative;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.9));
+}
+.eru-coin svg { width:100%; height:100%; }
+
+/* Число поверх монети */
+.eru-coin-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: max(1.5rem, calc(var(--coin-sz, 72px) * .38)); font-weight: 900; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,1);
+  z-index: 1;
+}
+.eru-slot-final {
+  animation: eru-slot-final-pop .3s cubic-bezier(.175,.885,.32,1.275) both;
+}
+@keyframes eru-slot-final-pop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+
+/* Очікування — монета крутиться */
+.eru-coin--pending svg {
+  animation: eru-coin-spin 2s linear infinite;
+}
+@keyframes eru-coin-spin { to { transform: rotateY(360deg); } }
+
+/* Клікабельна монета — пульсує */
+.eru-coin--clickable {
+  cursor: pointer;
+  transition: transform .12s, filter .12s;
+}
+.eru-coin--clickable:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 3px 12px rgba(255,200,80,.8)) drop-shadow(0 0 20px rgba(255,200,80,.5));
+}
+.eru-coin--rolling svg { animation: eru-coin-spin .35s linear infinite; }
+
+/* Кнопки DIS / ADV */
+.eru-side-btn {
+  font-size: .52rem; font-weight: 900; letter-spacing: .06em;
+  color: rgba(255,255,255,.75); background: rgba(0,0,0,.7);
+  border: 1px solid rgba(180,140,30,.5); border-radius: 3px;
+  padding: 2px 4px; cursor: pointer; white-space: nowrap;
+  transition: background .12s, color .12s;
+  line-height: 1;
+}
+.eru-side-btn:hover { background: rgba(180,140,30,.4); color:#fff; }
+.eru-adv-btn:hover  { border-color: rgba(50,220,100,.7); color:#7efa7e; }
+.eru-dis-btn:hover  { border-color: rgba(220,80,50,.7);  color:#fea07e; }
+.eru-adv-btn.eru-side-btn--active {
+  background: rgba(30,180,70,.35); color:#7efa7e;
+  border-color: rgba(50,220,100,.8);
+  box-shadow: 0 0 6px rgba(50,220,100,.5);
+}
+.eru-dis-btn.eru-side-btn--active {
+  background: rgba(180,50,30,.35); color:#fea07e;
+  border-color: rgba(220,80,50,.8);
+  box-shadow: 0 0 6px rgba(220,80,50,.5);
+}
+
+/* Кольори монет по типу */
+.eru-coin--criticalHit svg {
+  filter: drop-shadow(0 0 8px rgba(255,215,0,.9));
+  animation: eru-crit-glow 1.5s ease-in-out infinite alternate;
+}
+@keyframes eru-crit-glow {
+  from { filter: drop-shadow(0 0 6px rgba(255,215,0,.5)); }
+  to   { filter: drop-shadow(0 0 18px rgba(255,215,0,1)); }
+}
+.eru-coin--criticalFail .eru-coin-num { color: #ff4040; }
+.eru-coin--highRoll    .eru-coin-num  { color: #7effaa; }
+.eru-coin--lowRoll     .eru-coin-num  { color: #ffcc44; }
+.eru-coin--pass svg { filter: drop-shadow(0 0 8px rgba(34,197,94,.7)); }
+.eru-coin--fail svg { filter: drop-shadow(0 0 8px rgba(220,38,38,.7)); }
+
+/* Трясіння для criticalFail */
+.eru-card--criticalFail {
+  animation: eru-card-result .38s ease both, eru-card-shake .5s ease .6s;
+}
+@keyframes eru-card-shake{
+  0%,100%{transform:none}20%{transform:translateX(-9px)}50%{transform:translateX(9px)}75%{transform:translateX(-5px)}
+}
+
+/* ══ FOOTER — GM панель ════════════════════════ */
+#eru-footer { pointer-events: all; width:100%; max-width:960px; }
+.eru-gm-panel {
+  background:rgba(0,0,0,.82); border:1px solid rgba(255,255,255,.1);
+  border-radius:.6rem; padding:.7rem 1rem; margin:.4rem 1rem;
+  animation: eru-panel-in .3s ease both; backdrop-filter:blur(6px);
+}
+@keyframes eru-panel-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.eru-gm-rows{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.55rem;}
+.eru-gm-row{display:flex;align-items:center;gap:.4rem;padding:.28rem .5rem;background:rgba(255,255,255,.06);border-radius:.35rem;}
+.eru-gm-row img{width:22px;height:22px;border-radius:50%;object-fit:cover;}
+.eru-gm-row span{font-size:.7rem;color:rgba(255,255,255,.55);max-width:85px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.eru-gm-row strong{font-size:.88rem;color:#dde;min-width:24px;text-align:right;}
+.eru-pass,.eru-fail{width:24px;height:24px;border-radius:50%;border:none;cursor:pointer;font-size:.72rem;font-weight:900;transition:transform .1s;}
+.eru-pass:hover,.eru-fail:hover{transform:scale(1.2);}
+.eru-pass{background:rgba(15,65,30,.9);color:rgba(140,210,140,.9);}
+.eru-fail{background:rgba(90,15,12,.9);color:rgba(220,130,120,.9);}
+.eru-gm-actions{display:flex;gap:.4rem;flex-wrap:wrap;}
+.eru-all-pass,.eru-all-fail,.eru-final-pass,.eru-final-fail,.eru-close-btn{
+  padding:.3rem .7rem;border-radius:.35rem;border:none;cursor:pointer;font-size:.7rem;font-weight:700;transition:filter .15s;
+}
+.eru-all-pass:hover,.eru-all-fail:hover,.eru-final-pass:hover,.eru-final-fail:hover,.eru-close-btn:hover{filter:brightness(1.18);}
+.eru-all-pass{background:rgba(15,65,30,.9);color:rgba(140,210,140,.9);}
+.eru-all-fail{background:rgba(90,15,12,.9);color:rgba(220,130,120,.9);}
+.eru-final-pass{background:rgba(12,50,24,.9);color:rgba(130,200,140,.9);font-size:.75rem;border:1px solid rgba(30,100,50,.3);}
+.eru-final-fail{background:rgba(70,12,12,.9);color:rgba(210,120,115,.9);font-size:.75rem;border:1px solid rgba(140,25,25,.3);}
+.eru-close-btn{background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);margin-left:auto;}
+
+/* ══ ОСОБИСТА ЗАСТАВКА ════════════════════════ */
+#eru-drama{
+  position:fixed;inset:0;z-index:99999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:all;cursor:pointer;
+  opacity:0;transition:opacity .3s ease;
+}
+#eru-drama.eru-drama--in{opacity:1;}
+#eru-drama.eru-drama--out{opacity:0;transition:opacity .5s ease;}
+.eru-drama--criticalHit::before,.eru-drama--criticalFail::before{
+  content:"";position:absolute;inset:0;backdrop-filter:blur(10px);
+}
+.eru-drama--criticalHit::before{background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(160,110,0,.6),rgba(0,0,0,.92));}
+.eru-drama--criticalFail::before{background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(140,0,0,.65),rgba(0,0,0,.93));}
+.eru-drama-icon{position:relative;z-index:1;font-size:5rem;line-height:1;margin-bottom:.15rem;animation:eru-icon-slam .4s cubic-bezier(.175,.885,.32,1.275) both;}
+@keyframes eru-icon-slam{from{transform:scale(0)rotate(-22deg);opacity:0}to{transform:none;opacity:1}}
+.eru-drama-num{position:relative;z-index:1;font-family:var(--font-primary, "Signika", serif);font-size:10rem;font-weight:900;line-height:.82;animation:eru-num-slam .38s cubic-bezier(.175,.885,.32,1.275) .12s both;}
+@keyframes eru-num-slam{from{transform:scale(.1);opacity:0}to{transform:scale(1);opacity:1}}
+.eru-drama-num--final{animation:none;}
+.eru-drama--criticalHit .eru-drama-num{color:#ffd700;text-shadow:0 0 55px rgba(255,215,0,1),0 5px 0 #000;animation:eru-num-slam .38s cubic-bezier(.175,.885,.32,1.275) .12s both,eru-gold-throb 2s ease-in-out 1s infinite alternate;}
+@keyframes eru-gold-throb{from{text-shadow:0 0 35px rgba(255,215,0,.7),0 5px 0 #000;}to{text-shadow:0 0 75px rgba(255,215,0,1),0 5px 0 #000,0 0 120px rgba(255,215,0,.4);}}
+.eru-drama--criticalFail .eru-drama-num{color:#ff2828;text-shadow:0 0 55px rgba(255,40,40,.9),0 5px 0 #000;animation:eru-num-slam .38s cubic-bezier(.175,.885,.32,1.275) .12s both,eru-fail-tremble .55s ease .9s;}
+@keyframes eru-fail-tremble{0%,100%{transform:none}15%{transform:translateX(-14px)rotate(-1.5deg)}35%{transform:translateX(14px)rotate(1.5deg)}55%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+.eru-drama-msg{position:relative;z-index:1;font-family:var(--font-primary, "Signika", serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.95);margin-top:.4rem;animation:eru-up .38s ease .3s both;}
+@keyframes eru-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.eru-drama--criticalFail .eru-drama-msg{color:#ffbbbb;}
+.eru-drama-who{position:relative;z-index:1;font-size:1.1rem;color:rgba(255,255,255,.55);font-style:italic;margin-top:.4rem;animation:eru-up .38s ease .44s both;}
+#eru-drama::after{content:"клікни, щоб закрити";position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:1;font-size:.68rem;color:rgba(255,255,255,.18);letter-spacing:.1em;pointer-events:none;}
+
+/* ══ GM ДІАЛОГ ════════════════════════════════ */
+.eru-dialog .window-content{padding:0;background:#0c0b18;color:#dde;}
+.eru-db{padding:1rem;display:flex;flex-direction:column;gap:.85rem;}
+.eru-dl{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);margin-bottom:.35rem;display:flex;align-items:center;gap:.4rem;}
+.eru-df{display:flex;flex-direction:column;}.eru-drow{display:flex;gap:.85rem;}
+.eru-ds{width:100%;padding:.5rem .6rem;border-radius:.4rem;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);color:#e8e8f8;font-size:.88rem;cursor:pointer;}
+.eru-ds:focus{outline:none;border-color:rgba(255,215,0,.5);}
+.eru-ds optgroup{color:rgba(255,255,255,.3);font-size:.72rem;background:#0c0b18;}
+.eru-ds option{background:#1a1830;color:#e8e8f8;}
+.eru-ddc{width:100%;padding:.5rem;border-radius:.4rem;box-sizing:border-box;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.35);color:#ffffff !important;font-size:1.55rem;font-weight:700;text-align:center;caret-color:#ffd700;}
+.eru-ddc:focus{outline:none;border-color:rgba(255,215,0,.7);box-shadow:0 0 0 2px rgba(255,215,0,.2);}
+.eru-ddc::placeholder{color:rgba(255,255,255,.2);font-size:.9rem;font-weight:400;}
+.eru-dinput{width:100%;padding:.45rem .6rem;border-radius:.4rem;box-sizing:border-box;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);font-size:.8rem;}
+.eru-dinput:focus{outline:none;border-color:rgba(255,215,0,.4);}
+.eru-dinput::placeholder{color:rgba(255,255,255,.2);}
+.eru-actors{display:flex;flex-wrap:wrap;gap:.4rem;max-height:185px;overflow-y:auto;padding:.35rem;background:rgba(0,0,0,.4);border-radius:.4rem;border:1px solid rgba(255,255,255,.07);}
+.eru-actors::-webkit-scrollbar{width:3px;}
+.eru-actors::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px;}
+.eru-a{display:flex;flex-direction:column;align-items:center;gap:.28rem;width:64px;padding:.4rem .3rem;border-radius:.4rem;cursor:pointer;user-select:none;border:1.5px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);transition:background .15s,border-color .15s;}
+.eru-a:hover{background:rgba(255,255,255,.09);}
+.eru-a input{display:none;}
+.eru-a img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.1);}
+.eru-a span{font-size:.6rem;color:rgba(255,255,255,.52);text-align:center;word-break:break-word;line-height:1.2;}
+.eru-a:has(input:checked){background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.42);}
+.eru-a:has(input:checked) img{border-color:rgba(255,215,0,.65);}
+.eru-a:has(input:checked) span{color:#e8d87a;}
+.eru-dq{padding:1px 8px;font-size:.63rem;border-radius:.3rem;cursor:pointer;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.5);transition:background .15s;}
+.eru-dq:hover{background:rgba(255,255,255,.14);color:#fff;}
+.eru-empty{color:rgba(255,255,255,.3);font-style:italic;font-size:.8rem;padding:.5rem;}
+.eru-dgo{width:100%;padding:.72rem;border-radius:.5rem;border:none;cursor:pointer;font-family:var(--font-primary, "Signika", serif);font-size:1.08rem;font-weight:700;letter-spacing:.05em;color:#1a0800;background:linear-gradient(135deg,rgba(120,90,10,.9),rgba(80,60,5,.95));border:1px solid rgba(200,160,40,.35);box-shadow:0 2px 8px rgba(0,0,0,.5);transition:filter .15s,transform .1s;}
+.eru-dgo:hover{filter:brightness(1.12);transform:translateY(-1px);}
+
+
+
+.eru-dice-launch-btn:hover{transform:scale(1.14);filter:brightness(1.25);}
+
+/* ── Кнопка в лівій панелі Scene Controls ── */
+
+
+
+
+/* ═══════════════════════════════════════════════
+   КІНЕМАТОГРАФІЧНИЙ ВХІД v2
+   ═══════════════════════════════════════════════ */
+
+/* ── Заголовок: стани анімації ─────────────────── */
+
+
+  100% { opacity:0; transform:translateX(-110vw); }
+}
+
+/* ══ IMPACT FRAME — горизонтальний збоку ═════════ */
+#eru-impact {
+  position: fixed; inset: 0; z-index: 99998;
+  pointer-events: none; overflow: hidden;
+}
+/* Freeze flash — чорний спалах */
+#eru-impact::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: #000;
+  animation: eru-freeze .15s ease both;
+}
+@keyframes eru-freeze {
+  0%   { opacity: .85; }
+  100% { opacity: 0; }
+}
+/* Горизонтальна смуга-спалах зліва */
+.eru-impact-flash {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0)   0%,
+    rgba(255,255,255,.95) 25%,
+    var(--impact-glow, rgba(255,80,80,.9)) 55%,
+    rgba(0,0,0,0) 100%);
+  transform-origin: left center;
+  animation: eru-flash-horiz .5s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes eru-flash-horiz {
+  0%   { opacity:0; transform: translateX(-100%); }
+  12%  { opacity:1; transform: translateX(0); }
+  55%  { opacity:.65; }
+  100% { opacity:0; transform: translateX(15%); }
+}
+/* Кільця — горизонтальні еліпси */
+.eru-impact-ring {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: flex-start;
+  padding-left: 15%;
+}
+.eru-impact-ring::before,
+.eru-impact-ring::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid var(--impact-glow, rgba(255,80,80,.8));
+  width: 40px; height: 40px;
+  animation: eru-ring-horiz .55s ease both;
+}
+.eru-impact-ring::before { animation-delay: 0ms; }
+.eru-impact-ring::after  { border-color: rgba(255,255,255,.5); border-width:2px; animation-delay: 60ms; }
+@keyframes eru-ring-horiz {
+  0%   { transform: scale(0) scaleX(1); opacity:1; }
+  100% { transform: scale(1) scaleX(18) translateX(120px); opacity:0; }
+}
+/* Лінії-трасери — горизонтальні промені зліва */
+.eru-impact-lines {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.eru-speed-line {
+  position: absolute;
+  left: 0; top: 50%;
+  transform-origin: left center;
+  height: var(--thick, 2px);
+  width: var(--len, 40vw);
+  margin-top: calc(var(--thick,2px) / -2);
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.0) 0%,
+    rgba(255,255,255,.9) 50%,
+    rgba(255,255,255,.0) 100%);
+  transform: translateY(var(--yoff, 0px));
+  animation: eru-tracer-horiz .45s ease both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes eru-tracer-horiz {
+  0%   { opacity:0; transform:translateX(-100%) translateY(var(--yoff,0)); }
+  20%  { opacity:1; transform:translateX(-20%) translateY(var(--yoff,0)); }
+  60%  { opacity:.8; transform:translateX(0) translateY(var(--yoff,0)); }
+  100% { opacity:0; transform:translateX(60vw) translateY(var(--yoff,0)); }
+}
+/* Іскри */
+.eru-impact-sparks {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: flex-start;
+  padding-left: 5%;
+}
+.eru-spark {
+  position: absolute;
+  width: var(--sz, 4px); height: var(--sz, 4px);
+  border-radius: 50%;
+  background: var(--impact-glow, rgba(255,150,80,1));
+  box-shadow: 0 0 6px 2px var(--impact-glow, rgba(255,150,80,.6));
+  animation: eru-spark-horiz var(--dur,.5s) ease both;
+  animation-delay: var(--delay,0ms);
+}
+@keyframes eru-spark-horiz {
+  0%   { opacity:1; transform:translate(0,0) scale(1); }
+  100% { opacity:0; transform:translate(var(--dx,120px), var(--dy,0px)) scale(0); }
+}
+#eru-impact.eru-impact--out {
+  animation: eru-impact-fade .35s ease forwards;
+}
+@keyframes eru-impact-fade { to { opacity:0; } }
+@keyframes eru-impact-fade { to { opacity:0; } }
+
+/* ── МАСШТАБУВАННЯ ПОРТРЕТІВ ───────────────────── */
+/* Базова картка */
+.eru-card {
+  --card-w: 120px;
+  --card-h: 160px;
+  --coin-sz: 72px;
+}
+
+/* 1 портрет — дуже великий */
+#eru-scene[data-count="1"] .eru-card,
+.eru-card[data-count="1"] {
+  --card-w: 260px;
+  --card-h: 340px;
+  --coin-sz: 100px;
+}
+/* 2 портрети */
+#eru-scene[data-count="2"] .eru-card,
+.eru-card[data-count="2"] {
+  --card-w: 200px;
+  --card-h: 260px;
+  --coin-sz: 88px;
+}
+/* 3 портрети */
+#eru-scene[data-count="3"] .eru-card,
+.eru-card[data-count="3"] {
+  --card-w: 160px;
+  --card-h: 210px;
+  --coin-sz: 80px;
+}
+/* 4 портрети — базовий */
+/* 5+ — менші */
+#eru-scene[data-count="5"] .eru-card,
+.eru-card[data-count="5"],
+#eru-scene[data-count="6"] .eru-card,
+.eru-card[data-count="6"] {
+  --card-w: 96px;
+  --card-h: 128px;
+  --coin-sz: 60px;
+}
+#eru-scene[data-count="7"] .eru-card,
+.eru-card[data-count="7"],
+#eru-scene[data-count="8"] .eru-card,
+.eru-card[data-count="8"] {
+  --card-w: 80px;
+  --card-h: 108px;
+  --coin-sz: 52px;
+}
+
+/* Застосувати змінні */
+.eru-card {
+  width: var(--card-w, 120px);
+}
+.eru-card-portrait {
+  width: var(--card-w, 120px);
+  height: var(--card-h, 160px);
+}
+.eru-coin {
+  width: var(--coin-sz, 72px);
+  height: var(--coin-sz, 72px);
+}
+.eru-coin-wrap {
+  bottom: calc(var(--coin-sz, 72px) * -.48);
+}
+.eru-coin-num {
+  /* Мінімум 1.4rem щоб число було читабельним */
+  font-size: max(1.4rem, calc(var(--coin-sz, 72px) * .38));
+}
+.eru-card-name-top {
+  max-width: var(--card-w, 120px);
+}
+
+
+.eru-all-pass:hover,.eru-all-fail:hover,.eru-final-pass:hover,.eru-final-fail:hover,.eru-close-btn:hover {
+  filter:brightness(1.18); transform:translateY(-1px);
+}
+.eru-all-pass   { background:rgba(15,65,30,.9); color:rgba(140,210,140,.9); }
+.eru-all-fail   { background:rgba(90,15,12,.9); color:rgba(220,130,120,.9); }
+.eru-final-pass { background:rgba(12,50,24,.9); color:rgba(130,200,140,.9); border:1px solid rgba(30,100,50,.3); }
+.eru-final-fail { background:rgba(70,12,12,.9); color:rgba(210,120,115,.9); border:1px solid rgba(140,25,25,.3); }
+.eru-close-btn  { background:rgba(255,255,255,.1); color:rgba(255,255,255,.6); margin-left:auto; }
+
+/* ══ VERDICT ROW — [coin] / [✓][✗] ═════════════ */
+.eru-verdict-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  position: absolute;
+  bottom: calc(var(--coin-sz, 72px) * -.48);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  animation: eru-verdict-row-in .35s cubic-bezier(.22,1,.36,1) both;
+}
+.eru-verdict-btns {
+  display: flex;
+  gap: 6px;
+}
+@keyframes eru-verdict-row-in {
+  from { opacity:0; transform:translateX(-50%) scale(.7); }
+  to   { opacity:1; transform:translateX(-50%) scale(1); }
+}
+
+/* Монета всередині групи */
+.eru-coin-in-row {
+  position: relative;
+  width: var(--coin-sz, 72px);
+  height: var(--coin-sz, 72px);
+  flex-shrink: 0;
+}
+.eru-coin-in-row .eru-coin,
+.eru-coin-in-row > svg,
+.eru-coin-in-row > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Кнопки ✓ і ✗ */
+.eru-cv-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%; border: 2px solid rgba(0,0,0,.5);
+  cursor: pointer; font-size: .85rem; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: transform .12s, filter .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.15);
+}
+.eru-cv-btn:hover { transform: scale(1.25); filter: brightness(1.3); }
+.eru-cv-pass { background: linear-gradient(145deg,rgba(15,65,30,.95),rgba(8,40,18,.98)); color: rgba(140,210,140,.9); border-color: rgba(30,120,60,.4); }
+.eru-cv-fail { background: linear-gradient(145deg,rgba(90,15,12,.95),rgba(60,8,6,.98)); color: rgba(220,130,120,.9); border-color: rgba(160,30,25,.4); }
+
+/* Глобальні кнопки GM внизу */
+#eru-footer {
+  pointer-events: all;
+  width: 100%;
+  max-width: 960px;
+}
+.eru-gm-actions {
+  display: flex; gap: .4rem; flex-wrap: wrap;
+  justify-content: center;
+  padding: .5rem 1rem .4rem;
+  pointer-events: all;
+}
+.eru-all-pass,.eru-all-fail,.eru-final-pass,.eru-final-fail,.eru-close-btn {
+  padding: .35rem .9rem; border-radius: .35rem; border: none; cursor: pointer;
+  font-size: .75rem; font-weight: 700;
+  transition: filter .15s, transform .1s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+.eru-all-pass:hover,.eru-all-fail:hover,.eru-final-pass:hover,.eru-final-fail:hover,.eru-close-btn:hover {
+  filter: brightness(1.2); transform: translateY(-1px);
+}
+.eru-all-pass   { background:rgba(15,65,30,.9); color:rgba(140,210,140,.9); }
+.eru-all-fail   { background:rgba(90,15,12,.9); color:rgba(220,130,120,.9); }
+.eru-final-pass { background:rgba(12,50,24,.9); color:rgba(130,200,140,.9); border:1px solid rgba(30,100,50,.3); }
+.eru-final-fail { background:rgba(70,12,12,.9); color:rgba(210,120,115,.9); border:1px solid rgba(140,25,25,.3); }
+.eru-close-btn  { background: rgba(255,255,255,.1); color: rgba(255,255,255,.6); margin-left: auto; }
+
+/* ── Text tracer animation ────────────────────── */
+@keyframes eru-text-tracer {
+  0%   { opacity:0; transform:translateX(-30vw); }
+  25%  { opacity:0.85; transform:translateX(0); }
+  70%  { opacity:0.6; }
+  100% { opacity:0; transform:translateX(60vw); }
+}
+
+/* ══ LABEL ANIMATION — slide from right, hold, exit left ═════════ */
+.eru-band-label {
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: clamp(2rem,4.5vw,4rem);
+  font-weight: 900;
+  color: var(--label-color, #fff);
+  letter-spacing: .06em; text-transform: uppercase; text-align: center;
+  text-shadow: 0 2px 0 rgba(0,0,0,1), 0 4px 20px rgba(0,0,0,.95),
+               0 0 30px var(--glow, rgba(255,80,80,.4));
+  position: relative; z-index: 2;
+  /* За межею екрану справа — початкова позиція */
+  transform: translateX(110vw);
+  opacity: 0;
+  /* Без transition — тільки animation */
+  transition: none !important;
+  will-change: transform, opacity;
+}
+
+/* Влітає справа */
+.eru-label--enter {
+  animation: eru-lbl-in .65s cubic-bezier(.22,1,.36,1) both !important;
+  transition: none !important;
+}
+@keyframes eru-lbl-in {
+  0%   { transform: translateX(110vw);  opacity: 0; }
+  70%  { transform: translateX(-10px);  opacity: 1; }
+  85%  { transform: translateX(5px);    opacity: 1; }
+  100% { transform: translateX(0);      opacity: 1; }
+}
+
+/* Виїжджає вліво */
+.eru-label--exit {
+  animation: eru-lbl-out .45s cubic-bezier(.55,0,1,.45) both !important;
+  transition: none !important;
+}
+@keyframes eru-lbl-out {
+  0%   { transform: translateX(0);      opacity: 1; }
+  100% { transform: translateX(-110vw); opacity: 0; }
+}
+
+/* Схований — за межею, без анімацій */
+.eru-label--hidden {
+  transform: translateX(110vw) !important;
+  opacity: 0 !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ══ CONTEST MODE ══════════════════════════════════════════════ */
+
+/* Сцена змагання — дві колонки */
+.eru-contest-stage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+  padding: .3rem 1rem .5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.eru-contest-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  flex: 1;
+  transition: filter .5s ease, opacity .5s ease;
+}
+
+.eru-side-label {
+  font-size: 1.6rem;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.8));
+}
+
+/* Роздільник VS */
+.eru-contest-vs {
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: rgba(255,255,255,.85);
+  text-shadow: 0 2px 12px rgba(0,0,0,1), 0 0 30px rgba(255,255,255,.2);
+  letter-spacing: .1em;
+  align-self: center;
+  flex-shrink: 0;
+  animation: eru-vs-pulse 2s ease-in-out infinite alternate;
+}
+@keyframes eru-vs-pulse {
+  from { opacity:.7; transform:scale(1); }
+  to   { opacity:1; transform:scale(1.08); }
+}
+
+/* Картки всередині contest side */
+.eru-contest-side .eru-band-cards {
+  min-height: 100px;
+}
+
+/* Переможець — яскравіший */
+.eru-side--winner {
+  filter: drop-shadow(0 0 20px rgba(255,215,0,.8)) brightness(1.1);
+}
+.eru-side--winner .eru-card-portrait {
+  border-color: rgba(255,215,0,.8) !important;
+  box-shadow: 0 0 20px rgba(255,215,0,.5);
+}
+
+/* Програв — темніший */
+.eru-side--loser {
+  filter: brightness(.55) saturate(.4);
+  opacity: .7;
+}
+
+/* Нічия */
+.eru-side--tie {
+  filter: drop-shadow(0 0 12px rgba(150,150,255,.6));
+}
+
+/* Фінальний текст нічия */
+.eru-final--tie {
+  color: #c0c0ff;
+  text-shadow: 0 0 60px rgba(150,150,255,.8), 0 4px 0 #000;
+}
+
+/* ── Contest Panel (GM) ─────────────────────────────── */
+.eru-contest-panel {
+  background: rgba(0,0,0,.82);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: .6rem;
+  padding: .75rem 1rem;
+  margin: .4rem 1rem;
+  backdrop-filter: blur(6px);
+  animation: eru-panel-in .3s ease both;
+  pointer-events: all;
+}
+
+.eru-contest-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: .6rem;
+}
+
+.eru-score-a { color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,.6); }
+.eru-score-b { color: #60aaff; text-shadow: 0 0 20px rgba(100,150,255,.6); }
+.eru-score-vs {
+  font-size: .9rem; color: rgba(255,255,255,.4);
+  letter-spacing: .1em;
+}
+
+.eru-contest-hint {
+  text-align: center;
+  font-size: .68rem;
+  color: rgba(255,255,255,.4);
+  margin-top: .3rem;
+  letter-spacing: .05em;
+}
+
+/* ── Contest Dialog ─────────────────────────────────── */
+.eru-contest-sides {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+}
+.eru-contest-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.eru-contest-divider {
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: rgba(255,255,255,.5);
+  align-self: center;
+  padding: 0 .2rem;
+  flex-shrink: 0;
+}
+.eru-side-a-label { color: #ffd700 !important; }
+.eru-side-b-label { color: #60aaff !important; }
+
+/* В діалозі — стан actors-a/b */
+.eru-actors-a .eru-a:has(input:checked) { border-color: rgba(255,215,0,.6) !important; background: rgba(255,215,0,.12) !important; }
+.eru-actors-a .eru-a:has(input:checked) span { color: #ffd700 !important; }
+.eru-actors-b .eru-a:has(input:checked) { border-color: rgba(100,170,255,.6) !important; background: rgba(100,170,255,.12) !important; }
+.eru-actors-b .eru-a:has(input:checked) span { color: #60aaff !important; }
+
+/* Кнопка Contest в Scene Controls */
+#eru-contest-btn {
+  cursor: pointer !important;
+  color: #60aaff;
+}
+#eru-contest-btn:hover { color: #a0d0ff; }
+
+/* ══ DIALOG TABS ════════════════════════════════════ */
+.eru-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: .85rem;
+  border-radius: .45rem;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+}
+.eru-tab {
+  flex: 1;
+  padding: .55rem .5rem;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  background: rgba(0,0,0,.4);
+  color: rgba(255,255,255,.45);
+  transition: background .15s, color .15s;
+}
+.eru-tab:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.75); }
+.eru-tab--active {
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.85);
+  border-bottom: 2px solid rgba(180,140,30,.7);
+}
+.eru-tab[data-tab="contest"].eru-tab--active {
+  border-bottom-color: rgba(60,100,180,.7);
+}
+
+/* Panels */
+.eru-panel { display: flex; flex-direction: column; gap: .85rem; }
+.eru-panel--hidden { display: none !important; }
+
+/* Contest launch button — синій */
+.eru-dgo--contest {
+  background: linear-gradient(135deg,rgba(20,50,120,.9),rgba(10,30,80,.95)) !important;
+  color: rgba(180,210,255,.9) !important;
+  border: 1px solid rgba(60,100,200,.35) !important;
+}
+.eru-dgo--contest:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+/* ── SOUND MODE BUTTONS ──────────────────────────── */
+.eru-sound-btns {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.eru-sound-btn {
+  flex: 1; padding: .42rem .5rem;
+  font-family: var(--font-primary, "Signika", serif);
+  font-size: .78rem; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: .4rem; border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.55);
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.eru-sound-btn:hover {
+  background: rgba(255,255,255,.14); color: #fff;
+}
+.eru-sound-btn--active {
+  background: rgba(200,160,40,.25); color: #ffd700;
+  border-color: rgba(200,160,40,.55);
+}
+.eru-sound-btn--mute {
+  border-color: rgba(200,50,50,.3); color: rgba(255,120,100,.6);
+}
+.eru-sound-btn--mute.eru-sound-btn--active {
+  background: rgba(180,30,20,.3); color: #ff7060;
+  border-color: rgba(220,60,40,.6);
+}
+
+/* ── ADV / DIS бейджі на картці ─────────────────── */
+.eru-adv-badge, .eru-dis-badge {
+  display: inline-block;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+.eru-adv-badge {
+  background: rgba(30,100,50,.7);
+  color: rgba(140,220,140,.9);
+  border: 1px solid rgba(40,140,60,.4);
+}
+.eru-dis-badge {
+  background: rgba(100,30,20,.7);
+  color: rgba(220,140,130,.9);
+  border: 1px solid rgba(150,40,30,.4);
+}
+

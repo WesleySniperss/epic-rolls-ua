@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:poweredbylesbians.com)",
+      "WebFetch(domain:cannibalhalflinggaming.com)",
+      "WebFetch(domain:www.thelesbianreview.com)",
+      "WebFetch(domain:gnomestew.com)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(start \"c:/Users/Jonkm/AppData/Local/FoundryVTT/Data/modules/impact-frames/preview/index.html\")"
+    ]
+  }
+}
