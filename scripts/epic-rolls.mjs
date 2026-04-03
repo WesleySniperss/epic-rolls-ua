@@ -1,5 +1,5 @@
-/** Epic Rolls UA v13 */
-const MODULE_ID = "epic-rolls-ua";
+/** Epic Rolls v1.0.0 */
+const MODULE_ID = "epic-rolls";
 
 const ROLL_TYPES = [
   { id:"raw",        label:"Raw d20",               cat:"raw"                },
@@ -75,13 +75,13 @@ function makeCtx(){ return new(window.AudioContext||window.webkitAudioContext)()
 
 // Built-in sounds — fallback if setting is empty
 const BUILTIN_SOUNDS = {
-  impactShort:   "modules/epic-rolls-ua/sounds/impact-short.mp3",
-  impactAction:  "modules/epic-rolls-ua/sounds/impact.mp3",
-  impactActionL: "modules/epic-rolls-ua/sounds/impact1.mp3",
-  impactTension: "modules/epic-rolls-ua/sounds/tension.mp3",
-  ambientMusic:  "modules/epic-rolls-ua/sounds/ambient1.mp3",
-  failureMusic:  "modules/epic-rolls-ua/sounds/failure.mp3",
-  successMusic:  "modules/epic-rolls-ua/sounds/success.mp3",
+  impactShort:   "modules/epic-rolls/sounds/impact-short.mp3",
+  impactAction:  "modules/epic-rolls/sounds/impact.mp3",
+  impactActionL: "modules/epic-rolls/sounds/impact1.mp3",
+  impactTension: "modules/epic-rolls/sounds/tension.mp3",
+  ambientMusic:  "modules/epic-rolls/sounds/ambient1.mp3",
+  failureMusic:  "modules/epic-rolls/sounds/failure.mp3",
+  successMusic:  "modules/epic-rolls/sounds/success.mp3",
 };
 function getSoundUrl(key){ return getSetting(key) || BUILTIN_SOUNDS[key] || ""; }
 function isSoundMuted(){ return !getSetting("soundEnabled") || getSetting("impactMode")==="mute"; }
@@ -101,7 +101,7 @@ async function playFoundrySound(path, volume=0.8, loop=false){
     return sound;
   }catch(e){
     console.warn(`${MODULE_ID} | Audio failed: "${path}"`, e);
-    ui.notifications?.warn(`Epic Rolls UA: could not play sound. Check path in settings (e.g: modules/epic-rolls-ua/sounds/file.mp3)`);
+    ui.notifications?.warn(`Epic Rolls UA: could not play sound. Check path in settings (e.g: modules/epic-rolls/sounds/file.mp3)`);
     return null;
   }
 }
@@ -313,7 +313,7 @@ function sceneOpen(payload){
   const{rt,dc,actors}=payload;
   const theme=CAT_THEME[rt?.cat??"raw"]??CAT_THEME.raw;
   const bgUrl=getSetting("bannerBg")||"";
-  const bannerImg=bgUrl||"modules/epic-rolls-ua/assets/banner.jpg";
+  const bannerImg=bgUrl||"modules/epic-rolls/assets/banner.jpg";
   // Формат: "DC 14 Dexterity Check" або "Acrobatics Check"
   const buildLabel=(rt,dc)=>{
     if(!rt)return"Group Roll";
@@ -1057,14 +1057,14 @@ class GroupRollDialog extends Application{
 // ── VTools ───────────────────────────────────────────────────────
 Hooks.once("vtools.ready", () => {
   VTools.register({
-    name:    "epic-rolls-ua",
-    title:   "Group Roll UA",
+    name:    "epic-rolls",
+    title:   "Group Roll",
     icon:    "fas fa-dice-d20",
     onClick: () => new GroupRollDialog().render(true),
   });
 
   if (game.modules.get("tension-pool-2")?.active) {
-    const TP_LS_KEY = "epic-rolls-ua.tension-pool-hidden";
+    const TP_LS_KEY = "epic-rolls.tension-pool-hidden";
     VTools.register({
       name:    "tension-pool-2",
       title:   "Tension Pool",
@@ -1107,22 +1107,22 @@ function registerSettings(){
   });
   game.settings.register(MODULE_ID,"successMusic",{
     name:"Success Music",
-    hint:"Plays on success announcement. MP3/OGG. E.g.: modules/epic-rolls-ua/sounds/success.mp3",
+    hint:"Plays on success announcement. MP3/OGG. E.g.: modules/epic-rolls/sounds/success.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"failureMusic",{
     name:"Failure Music",
-    hint:"Plays on failure announcement. MP3/OGG. E.g.: modules/epic-rolls-ua/sounds/failure.mp3",
+    hint:"Plays on failure announcement. MP3/OGG. E.g.: modules/epic-rolls/sounds/failure.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"impactMusic",{
     name:"Impact Music",
-    hint:"Plays during the roll title reveal. E.g.: modules/epic-rolls-ua/sounds/impact.mp3",
+    hint:"Plays during the roll title reveal. E.g.: modules/epic-rolls/sounds/impact.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"ambientMusic",{
     name:"Ambient Music (during rolls)",
-    hint:"Loops in background while players roll. Stops at result. E.g.: modules/epic-rolls-ua/sounds/ambient.mp3",
+    hint:"Loops in background while players roll. Stops at result. E.g.: modules/epic-rolls/sounds/ambient.mp3",
     scope:"world",config:true,type:String,default:"",
   });
 }
@@ -1170,7 +1170,7 @@ function contestOpen(payload) {
   const { rt, sideA, sideB } = payload;
   const theme = CAT_THEME[rt?.cat ?? "raw"] ?? CAT_THEME.raw;
   const bgUrl = getSetting("bannerBg") || "";
-  const bannerImg = bgUrl || "modules/epic-rolls-ua/assets/banner.jpg";
+  const bannerImg = bgUrl || "modules/epic-rolls/assets/banner.jpg";
 
   // Назва: "Strength Check — Contest"
   const rollName = buildContestLabel(rt);
