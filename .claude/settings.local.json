@@ -10,7 +10,22 @@
       "Bash(start \"c:/Users/Jonkm/AppData/Local/FoundryVTT/Data/modules/impact-frames/preview/index.html\")",
       "Bash(cp scripts/epic-rolls-ua.mjs scripts/epic-rolls.mjs)",
       "Bash(cp styles/epic-rolls-ua.css styles/epic-rolls.css)",
-      "Bash(rm scripts/epic-rolls-ua.mjs styles/epic-rolls-ua.css)"
+      "Bash(rm scripts/epic-rolls-ua.mjs styles/epic-rolls-ua.css)",
+      "Bash(zip -r module.zip module.json scripts/ styles/ lang/ assets/ sounds/ -x \"*.DS_Store\")",
+      "Bash(powershell -Command \"Compress-Archive -Path module.json,scripts,styles,lang,assets,sounds -DestinationPath module.zip -Force\")",
+      "Bash(gh release:*)",
+      "Bash(where gh:*)",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"winget install --id GitHub.cli -e --silent\")",
+      "Bash(powershell -Command \"winget install --id GitHub.cli -e --silent --accept-source-agreements --accept-package-agreements\")",
+      "Bash(powershell -Command '$env:PATH += \\\\\";C:\\\\Program Files\\\\GitHub CLI\\\\\"; gh --version')",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Read(//c/Users/Jonkm/**)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' --version)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' auth status)",
+      "Bash(git -C \"c:/Users/Jonkm/AppData/Local/FoundryVTT/Data/modules/epic-rolls-ua\" config --get remote.origin.url)",
+      "Bash(powershell -Command ':*)"
     ]
   }
 }
