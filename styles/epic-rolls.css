@@ -966,6 +966,10 @@
 }
 .eru-dgo--contest:hover { filter: brightness(1.15); transform: translateY(-1px); }
 
+/* Roll dialog checkbox option */
+.eru-option { display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:.55rem;cursor:pointer;user-select:none; }
+.eru-option input[type="checkbox"] { accent-color:rgba(200,160,40,.9);width:14px;height:14px;cursor:pointer; }
+
 /* ── SOUND MODE BUTTONS ──────────────────────────── */
 .eru-sound-btns {
   display: flex; gap: 5px; flex-wrap: wrap;

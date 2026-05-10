@@ -188,10 +188,7 @@ async function doRoll(actor, rt, adv, dis){
   const total = roll.total ?? 0;
   const { type } = analyzeRoll(roll);
 
-  // Show 3D dice (Dice So Nice)
-  if(game.dice3d) await game.dice3d.showForRoll(roll, game.user, true);
-
-  // Post to chat
+  // Post to chat — Dice So Nice hooks into toMessage automatically (no explicit showForRoll to avoid double animation)
   const rollMode = game.settings.get("core","rollMode") ?? "roll";
   const label = rt.cat==="raw" ? "Raw d20" : rt.label;
   await roll.toMessage({
@@ -201,6 +198,47 @@ async function doRoll(actor, rt, adv, dis){
   });
 
   return { actorId:actor.id, actorName:actor.name, img:actor.img||null, total, formula, type, adv:!!adv, dis:!!dis };
+}
+
+// ── Кидок через системний діалог (A5E / dnd5e) ───
+async function doRollViaSystemDialog(actor, rt) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (val) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      Hooks.off("createChatMessage", hookFn);
+      resolve(val);
+    };
+    const timeout = setTimeout(() => settle(null), 120000);
+
+    const hookFn = (msg) => {
+      if (msg.speaker?.actor !== actor.id) return;
+      const roll = msg.rolls?.[0];
+      if (!roll) { settle(null); return; }
+      const { type } = analyzeRoll(roll);
+      settle({ actorId:actor.id, actorName:actor.name, img:actor.img||null, total:roll.total, formula:roll.formula, type, adv:false, dis:false });
+    };
+    Hooks.on("createChatMessage", hookFn);
+
+    (async () => {
+      try {
+        let callResult;
+        if (game.system.id === "a5e") {
+          if (rt.cat === "ability") callResult = await actor.rollAbilityCheck?.(rt.key);
+          else if (rt.cat === "save") callResult = await actor.rollSavingThrow?.(rt.key);
+          else if (rt.cat === "skill") callResult = await actor.rollSkillCheck?.(rt.key);
+        } else if (game.system.id === "dnd5e") {
+          const ev = new MouseEvent("click");
+          if (rt.cat === "ability") callResult = await actor.rollAbilityCheck?.(rt.key, { event: ev });
+          else if (rt.cat === "save") callResult = await actor.rollAbilitySave?.(rt.key, { event: ev });
+          else if (rt.cat === "skill") callResult = await actor.rollSkill?.(rt.key, { event: ev });
+        }
+        if (!callResult) settle(null);
+      } catch(e) { settle(null); }
+    })();
+  });
 }
 
 // ── Слот-машина ───────────────────────────────────
@@ -271,6 +309,7 @@ const D20_SVG=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
 
 // ── Сцена ─────────────────────────────────────────
 let _state=null;
+let _showRollDialog=false;
 const _results=new Map();
 let _ambientAudio=null;
 
@@ -310,6 +349,7 @@ function sceneOpen(payload){
   document.getElementById("eru-scene")?.remove();
   document.getElementById("eru-impact")?.remove();
   _state={...payload};_results.clear();
+  _showRollDialog=payload.showRollDialog??false;
   const{rt,dc,actors}=payload;
   const theme=CAT_THEME[rt?.cat??"raw"]??CAT_THEME.raw;
   const bgUrl=getSetting("bannerBg")||"";
@@ -344,8 +384,9 @@ function sceneOpen(payload){
       </div>
       <button class="eru-sound-toggle" id="eru-sound-toggle" title="Toggle my sound"></button>
     </div>
-    <div id="eru-footer"></div>`;
+    <div id="eru-footer">${game.user.isGM?`<div class="eru-gm-actions"><button class="eru-close-btn" id="eru-gm-early-cancel">✕ Cancel</button></div>`:""}</div>`;
   document.body.appendChild(el);
+  el.querySelector("#eru-gm-early-cancel")?.addEventListener("click",e=>{e.stopPropagation();emitClose();});
   const bgDiv=el.querySelector(".eru-band-bg-img");
   if(bgDiv)bgDiv.style.backgroundImage=`url("${bannerImg}")`;
 
@@ -575,29 +616,36 @@ function addDiceControls(actorId, actor, rt){
       _adv=false; _dis=false;
       advBtn?.classList.remove("eru-side-btn--active");
       disBtn?.classList.remove("eru-side-btn--active");
-      // Звук кидка
-      if(!isSoundMuted()){
-        try{
-          const C=new(window.AudioContext||window.webkitAudioContext)();
-          const now=C.currentTime;
-          const hits=2+Math.floor(Math.random()*3);
-          for(let h=0;h<hits;h++){
-            const ht=now+h*(0.06+Math.random()*0.05);
-            const bufLen=Math.floor(C.sampleRate*0.04);
-            const buf=C.createBuffer(1,bufLen,C.sampleRate);
-            const d=buf.getChannelData(0);
-            for(let i=0;i<bufLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,2.5);
-            const noise=C.createBufferSource(); noise.buffer=buf;
-            const bp=C.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1200+Math.random()*1800; bp.Q.value=0.8+Math.random()*1.5;
-            const hp=C.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=400;
-            const gain=C.createGain(); gain.gain.setValueAtTime(0.175+Math.random()*0.125,ht); gain.gain.exponentialRampToValueAtTime(0.001,ht+0.06);
-            noise.connect(bp);bp.connect(hp);hp.connect(gain);gain.connect(C.destination);
-            noise.start(ht);noise.stop(ht+0.07);
-          }
-        }catch(e){}
-      }
       try{
-        const result=await doRoll(actor,rt,adv,dis);
+        let result;
+        if(_showRollDialog){
+          // Show system dialog (A5E/dnd5e) — capture result via chat message hook
+          result=await doRollViaSystemDialog(actor,rt);
+          if(!result){delete d20.dataset.rolling;d20.classList.remove("eru-coin--rolling");return;}
+        } else {
+          // Звук кидка
+          if(!isSoundMuted()){
+            try{
+              const C=new(window.AudioContext||window.webkitAudioContext)();
+              const now=C.currentTime;
+              const hits=2+Math.floor(Math.random()*3);
+              for(let h=0;h<hits;h++){
+                const ht=now+h*(0.06+Math.random()*0.05);
+                const bufLen=Math.floor(C.sampleRate*0.04);
+                const buf=C.createBuffer(1,bufLen,C.sampleRate);
+                const d=buf.getChannelData(0);
+                for(let i=0;i<bufLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,2.5);
+                const noise=C.createBufferSource(); noise.buffer=buf;
+                const bp=C.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1200+Math.random()*1800; bp.Q.value=0.8+Math.random()*1.5;
+                const hp=C.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=400;
+                const gain=C.createGain(); gain.gain.setValueAtTime(0.175+Math.random()*0.125,ht); gain.gain.exponentialRampToValueAtTime(0.001,ht+0.06);
+                noise.connect(bp);bp.connect(hp);hp.connect(gain);gain.connect(C.destination);
+                noise.start(ht);noise.stop(ht+0.07);
+              }
+            }catch(e){}
+          }
+          result=await doRoll(actor,rt,adv,dis);
+        }
         delete d20.dataset.rolling;
         d20.classList.remove("eru-coin--rolling");
 
@@ -859,7 +907,8 @@ class GroupRollDialog extends Application{
   }
 
   async _renderInner(){
-    const actors=game.actors.filter(a=>["character","npc"].includes(a.type));
+    const sceneActorIds=new Set((canvas?.tokens?.placeables??[]).map(t=>t.actor?.id).filter(Boolean));
+    const actors=game.actors.filter(a=>["character","npc"].includes(a.type)&&sceneActorIds.has(a.id));
     const sel=buildRollTypeSelect();
     const acGrid=buildActorGrid(actors,"g-actor");
     const acGridA=buildActorGrid(actors,"c-actor-a");
@@ -914,6 +963,7 @@ class GroupRollDialog extends Application{
             </div>
             <div class="eru-actors" id="g-actors">${acGrid}</div>
           </div>
+          <label class="eru-option"><input type="checkbox" id="g-show-dialog"/> Show roll dialog (A5E/dnd5e)</label>
           <button type="button" id="g-launch" class="eru-dgo">Launch Group Roll</button>
         </div>
 
@@ -940,6 +990,7 @@ class GroupRollDialog extends Application{
               <div class="eru-actors eru-actors-b">${acGridB}</div>
             </div>
           </div>
+          <label class="eru-option"><input type="checkbox" id="c-show-dialog"/> Show roll dialog (A5E/dnd5e)</label>
           <button type="button" id="c-launch" class="eru-dgo eru-dgo--contest">Start Contest</button>
         </div>
 
@@ -1016,8 +1067,9 @@ class GroupRollDialog extends Application{
     this._getBg(r);
     const dcRaw=parseInt(r.querySelector("#g-dc").value);
     const dc=isNaN(dcRaw)?null:dcRaw;
+    const showRollDialog=r.querySelector("#g-show-dialog")?.checked??false;
     const actors=ids.map(id=>{const a=game.actors.get(id);return a?{id:a.id,name:a.name,img:a.img||null}:null;}).filter(Boolean);
-    const payload={rt,dc,showDC:dc!=null,actors};
+    const payload={rt,dc,showDC:dc!=null,actors,showRollDialog};
     _results.clear();
     sceneOpen(payload);
     emit("open",payload);
@@ -1037,10 +1089,11 @@ class GroupRollDialog extends Application{
     if(overlap.length){ui.notifications.warn("Same actor can't be on both sides!");return;}
     const rt=this._getRT(r);
     this._getBg(r);
+    const showRollDialog=r.querySelector("#c-show-dialog")?.checked??false;
     const toActor=id=>{const a=game.actors.get(id);return a?{id:a.id,name:a.name,img:a.img||null}:null;};
     const sideA=idsA.map(toActor).filter(Boolean);
     const sideB=idsB.map(toActor).filter(Boolean);
-    const payload={rt,sideA,sideB,mode:"contest"};
+    const payload={rt,sideA,sideB,mode:"contest",showRollDialog};
     _contestResults.a.clear();_contestResults.b.clear();
     contestOpen(payload);
     const CARDS_START=2800;
@@ -1166,6 +1219,7 @@ function contestOpen(payload) {
   _contestState = { ...payload };
   _contestResults.a.clear();
   _contestResults.b.clear();
+  _showRollDialog = payload.showRollDialog ?? false;
 
   const { rt, sideA, sideB } = payload;
   const theme = CAT_THEME[rt?.cat ?? "raw"] ?? CAT_THEME.raw;
@@ -1198,9 +1252,10 @@ function contestOpen(payload) {
         </div>
       </div>
     </div>
-    <div id="eru-footer"></div>`;
+    <div id="eru-footer">${game.user.isGM?`<div class="eru-gm-actions"><button class="eru-close-btn" id="eru-gm-early-cancel">✕ Cancel</button></div>`:""}</div>`;
 
   document.body.appendChild(el);
+  el.querySelector("#eru-gm-early-cancel")?.addEventListener("click", e => { e.stopPropagation(); emitClose(); });
   const bgDiv = el.querySelector(".eru-band-bg-img");
   if (bgDiv) bgDiv.style.backgroundImage = `url("${bannerImg}")`;
 
