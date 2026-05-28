@@ -280,9 +280,11 @@
 }
 @keyframes eru-slot-final-pop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
 
-/* Очікування — монета крутиться */
-.eru-coin--pending svg {
+/* Очікування — крутиться лише внутрішній d20, зовнішня монета стоїть */
+.eru-coin--pending .eru-d20-face {
   animation: eru-coin-spin 2s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 @keyframes eru-coin-spin { to { transform: rotateY(360deg); } }
 
@@ -295,7 +297,7 @@
   transform: scale(1.15);
   filter: drop-shadow(0 3px 12px rgba(255,200,80,.8)) drop-shadow(0 0 20px rgba(255,200,80,.5));
 }
-.eru-coin--rolling svg { animation: eru-coin-spin .35s linear infinite; }
+.eru-coin--rolling .eru-d20-face { animation: eru-coin-spin .35s linear infinite; transform-box: fill-box; transform-origin: center; }
 
 /* Кнопки DIS / ADV */
 .eru-side-btn {

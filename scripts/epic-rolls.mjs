@@ -303,8 +303,10 @@ const D20_SVG=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   </defs>
   <circle cx="32" cy="32" r="30" fill="url(#cg${MODULE_ID})" stroke="#5a3e0a" stroke-width="1"/>
   <circle cx="32" cy="32" r="24" fill="url(#ig${MODULE_ID})" stroke="#c8920a" stroke-width="1.2"/>
-  <polygon points="32,10 50,20 50,44 32,54 14,44 14,20" fill="none" stroke="#c8920a" stroke-width="1.5"/>
-  <polygon points="32,17 44,24 44,40 32,47 20,40 20,24" fill="none" stroke="rgba(200,146,10,.4)" stroke-width=".8"/>
+  <g class="eru-d20-face">
+    <polygon points="32,10 50,20 50,44 32,54 14,44 14,20" fill="none" stroke="#c8920a" stroke-width="1.5"/>
+    <polygon points="32,17 44,24 44,40 32,47 20,40 20,24" fill="none" stroke="rgba(200,146,10,.4)" stroke-width=".8"/>
+  </g>
 </svg>`;
 
 // ── Сцена ─────────────────────────────────────────
