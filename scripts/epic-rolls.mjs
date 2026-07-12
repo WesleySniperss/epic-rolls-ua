@@ -640,7 +640,10 @@ function addDiceControls(actorId, actor, rt){
       disBtn?.classList.remove("eru-side-btn--active");
       try{
         let result;
-        if(_showRollDialog){
+        // Системний діалог існує лише для ability/save/skill в a5e/dnd5e;
+        // для raw d20 (та інших систем) — завжди прямий кидок
+        const canSysDialog = rt.cat!=="raw" && ["a5e","dnd5e"].includes(game.system.id);
+        if(_showRollDialog && canSysDialog){
           // Show system dialog (A5E/dnd5e) — capture result via chat message hook
           result=await doRollViaSystemDialog(actor,rt);
           if(!result){delete d20.dataset.rolling;d20.classList.remove("eru-coin--rolling");return;}
