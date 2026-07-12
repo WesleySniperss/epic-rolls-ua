@@ -1,5 +1,5 @@
 /** Epic Rolls v1.0.0 */
-const MODULE_ID = "epic-rolls";
+const MODULE_ID = "epic-rolls-ua";
 
 const ROLL_TYPES = [
   { id:"raw",        label:"Raw d20",               cat:"raw"                },
@@ -50,6 +50,8 @@ const CAT_THEME = {
 
 const getSetting = k => game.settings.get(MODULE_ID, k);
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+// Екранування для вставки імен/шляхів у innerHTML
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 const CRIT_HIT_LINES = [
   "NATURAL TWENTY!", "UNBELIEVABLE!", "THE GODS SMILE UPON YOU!",
@@ -71,17 +73,25 @@ const CRIT_FAIL_LINES = [
 ];
 
 // ── Sounds ────────────────────────────────────────
-function makeCtx(){ return new(window.AudioContext||window.webkitAudioContext)(); }
+// Один спільний AudioContext на сесію — браузери обмежують їх кількість
+let _actx=null;
+function getCtx(){
+  try{
+    if(!_actx||_actx.state==="closed") _actx=new(window.AudioContext||window.webkitAudioContext)();
+    if(_actx.state==="suspended") _actx.resume().catch(()=>{});
+    return _actx;
+  }catch(e){ return null; }
+}
 
 // Built-in sounds — fallback if setting is empty
 const BUILTIN_SOUNDS = {
-  impactShort:   "modules/epic-rolls/sounds/impact-short.mp3",
-  impactAction:  "modules/epic-rolls/sounds/impact.mp3",
-  impactActionL: "modules/epic-rolls/sounds/impact1.mp3",
-  impactTension: "modules/epic-rolls/sounds/tension.mp3",
-  ambientMusic:  "modules/epic-rolls/sounds/ambient1.mp3",
-  failureMusic:  "modules/epic-rolls/sounds/failure.mp3",
-  successMusic:  "modules/epic-rolls/sounds/success.mp3",
+  impactShort:   "modules/epic-rolls-ua/sounds/impact-short.mp3",
+  impactAction:  "modules/epic-rolls-ua/sounds/impact.mp3",
+  impactActionL: "modules/epic-rolls-ua/sounds/impact1.mp3",
+  impactTension: "modules/epic-rolls-ua/sounds/tension.mp3",
+  ambientMusic:  "", // вбудованого ambient-файлу нема — грає лише кастомний з налаштувань
+  failureMusic:  "modules/epic-rolls-ua/sounds/failure.mp3",
+  successMusic:  "modules/epic-rolls-ua/sounds/success.mp3",
 };
 function getSoundUrl(key){ return getSetting(key) || BUILTIN_SOUNDS[key] || ""; }
 function isSoundMuted(){ return !getSetting("soundEnabled") || getSetting("impactMode")==="mute"; }
@@ -101,7 +111,7 @@ async function playFoundrySound(path, volume=0.8, loop=false){
     return sound;
   }catch(e){
     console.warn(`${MODULE_ID} | Audio failed: "${path}"`, e);
-    ui.notifications?.warn(`Epic Rolls UA: could not play sound. Check path in settings (e.g: modules/epic-rolls/sounds/file.mp3)`);
+    ui.notifications?.warn(`Epic Rolls UA: could not play sound. Check path in settings (e.g: modules/epic-rolls-ua/sounds/file.mp3)`);
     return null;
   }
 }
@@ -157,24 +167,30 @@ function analyzeRoll(roll){
 // ── Кидок — рахуємо мод вручну, Roll напряму ────────
 // НЕ викликаємо dnd5e діалоги — вони ховаються за сценою
 async function doRoll(actor, rt, adv, dis){
-  const is5e = game.system.id === "dnd5e";
+  const sys = game.system.id;
   let mod = 0;
 
-  if(is5e && rt.cat !== "raw"){
+  if(rt.cat !== "raw"){
     try{
-      if(rt.cat === "ability"){
-        mod = actor.system?.abilities?.[rt.key]?.mod ?? 0;
-      } else if(rt.cat === "save"){
-        // save mod = ability mod + proficiency (якщо proficient)
-        const ab = actor.system?.abilities?.[rt.key];
-        mod = ab?.save ?? ab?.mod ?? 0;
-      } else if(rt.cat === "skill"){
-        const skill = actor.system?.skills?.[rt.key];
-        const abilKey = SKILL_ABILITY[rt.key] ?? "dex";
-        const abilMod = actor.system?.abilities?.[abilKey]?.mod ?? 0;
-        const prof = actor.system?.attributes?.prof ?? 0;
-        const multi = skill?.proficiencyMultiplier ?? skill?.value ?? 0;
-        mod = abilMod + Math.floor(prof * multi);
+      if(sys === "dnd5e"){
+        if(rt.cat === "ability"){
+          mod = actor.system?.abilities?.[rt.key]?.mod ?? 0;
+        } else if(rt.cat === "save"){
+          // save mod = ability mod + proficiency (якщо proficient)
+          const ab = actor.system?.abilities?.[rt.key];
+          mod = ab?.save ?? ab?.mod ?? 0;
+        } else if(rt.cat === "skill"){
+          const skill = actor.system?.skills?.[rt.key];
+          const abilKey = SKILL_ABILITY[rt.key] ?? "dex";
+          const abilMod = actor.system?.abilities?.[abilKey]?.mod ?? 0;
+          const prof = actor.system?.attributes?.prof ?? 0;
+          const multi = skill?.proficiencyMultiplier ?? skill?.value ?? 0;
+          mod = abilMod + Math.floor(prof * multi);
+        }
+      } else if(sys === "a5e"){
+        if(rt.cat === "ability")    mod = actor.system?.abilities?.[rt.key]?.check?.mod ?? 0;
+        else if(rt.cat === "save")  mod = actor.system?.abilities?.[rt.key]?.save?.mod ?? 0;
+        else if(rt.cat === "skill") mod = actor.system?.skills?.[rt.key]?.mod ?? 0;
       }
     }catch(e){ mod = 0; }
   }
@@ -216,7 +232,7 @@ async function doRollViaSystemDialog(actor, rt) {
     const hookFn = (msg) => {
       if (msg.speaker?.actor !== actor.id) return;
       const roll = msg.rolls?.[0];
-      if (!roll) { settle(null); return; }
+      if (!roll) return; // звичайне повідомлення в чат, не кидок — чекаємо далі
       const { type } = analyzeRoll(roll);
       settle({ actorId:actor.id, actorName:actor.name, img:actor.img||null, total:roll.total, formula:roll.formula, type, adv:false, dis:false });
     };
@@ -235,7 +251,8 @@ async function doRollViaSystemDialog(actor, rt) {
           else if (rt.cat === "save") callResult = await actor.rollAbilitySave?.(rt.key, { event: ev });
           else if (rt.cat === "skill") callResult = await actor.rollSkill?.(rt.key, { event: ev });
         }
-        if (!callResult) settle(null);
+        // Невелика пауза: деякі системи створюють повідомлення вже після resolve
+        if (!callResult) setTimeout(() => settle(null), 400);
       } catch(e) { settle(null); }
     })();
   });
@@ -272,7 +289,7 @@ function showPersonalDrama(result){
     <div class="eru-drama-icon">${isCrit?"★":"✕"}</div>
     <div class="eru-drama-num" id="dn">?</div>
     <div class="eru-drama-msg">${msg}</div>
-    <div class="eru-drama-who">${actorName}</div>`;
+    <div class="eru-drama-who">${esc(actorName)}</div>`;
   el.addEventListener("click",removeDrama);
   document.body.appendChild(el);
   requestAnimationFrame(()=>el.classList.add("eru-drama--in"));
@@ -314,6 +331,7 @@ let _state=null;
 let _showRollDialog=false;
 const _results=new Map();
 let _ambientAudio=null;
+let _finalCloseT=null; // таймер авто-закриття фіналу — скасовуємо, якщо відкрилась нова сцена
 
 async function startAmbient(){
   const url=getSoundUrl("ambientMusic");
@@ -334,7 +352,7 @@ async function startAmbient(){
         if(_ambientAudio.gain) _ambientAudio.gain.value=v;
         else if(_ambientAudio.volume!==undefined) _ambientAudio.volume=v;
       }catch(e){}
-      if(v>=0.5)clearInterval(fade);
+      if(v>=0.25)clearInterval(fade);
     },80);
   }catch(e){
     console.warn(`${MODULE_ID} | ambient error:`,e);
@@ -350,12 +368,13 @@ function stopAmbient(){
 function sceneOpen(payload){
   document.getElementById("eru-scene")?.remove();
   document.getElementById("eru-impact")?.remove();
+  clearTimeout(_finalCloseT);_finalCloseT=null;
   _state={...payload};_results.clear();
   _showRollDialog=payload.showRollDialog??false;
   const{rt,dc,actors}=payload;
   const theme=CAT_THEME[rt?.cat??"raw"]??CAT_THEME.raw;
   const bgUrl=getSetting("bannerBg")||"";
-  const bannerImg=bgUrl||"modules/epic-rolls/assets/banner.jpg";
+  const bannerImg=bgUrl||"modules/epic-rolls-ua/assets/banner.jpg";
   // Формат: "DC 14 Dexterity Check" або "Acrobatics Check"
   const buildLabel=(rt,dc)=>{
     if(!rt)return"Group Roll";
@@ -452,7 +471,8 @@ function sceneOpen(payload){
 function playWhoosh(){
   if(isSoundMuted())return;
   try{
-    const C=new(window.AudioContext||window.webkitAudioContext)();
+    const C=getCtx();
+    if(!C)return;
     const dur=0.55;
     const buf=C.createBuffer(1,Math.floor(C.sampleRate*dur),C.sampleRate);
     const d=buf.getChannelData(0);
@@ -571,9 +591,9 @@ function addPendingCard(actorId,actorName,img,count=4){
   card.dataset.id=actorId;
   card.dataset.count=count;
   card.innerHTML=`
-    <div class="eru-card-name-top">${actorName}</div>
+    <div class="eru-card-name-top">${esc(actorName)}</div>
     <div class="eru-card-portrait">
-      <img src="${img||"icons/svg/mystery-man.svg"}" alt="${actorName}"/>
+      <img src="${esc(img||"icons/svg/mystery-man.svg")}" alt="${esc(actorName)}"/>
     </div>
     <div class="eru-coin-wrap" id="coin-${actorId}">
       <div class="eru-coin eru-coin--pending">${D20_SVG}</div>
@@ -628,7 +648,8 @@ function addDiceControls(actorId, actor, rt){
           // Звук кидка
           if(!isSoundMuted()){
             try{
-              const C=new(window.AudioContext||window.webkitAudioContext)();
+              const C=getCtx();
+              if(!C)throw new Error("no ctx");
               const now=C.currentTime;
               const hits=2+Math.floor(Math.random()*3);
               for(let h=0;h<hits;h++){
@@ -698,8 +719,8 @@ function applyResult(result){
   card.dataset.count=count;
   const advBadge = result.adv ? '<span class="eru-adv-badge">ADV</span>' : result.dis ? '<span class="eru-dis-badge">DIS</span>' : '';
   card.innerHTML=`
-    <div class="eru-card-name-top">${actorName}${advBadge}</div>
-    <div class="eru-card-portrait"><img src="${img||"icons/svg/mystery-man.svg"}" alt="${actorName}"/></div>
+    <div class="eru-card-name-top">${esc(actorName)}${advBadge}</div>
+    <div class="eru-card-portrait"><img src="${esc(img||"icons/svg/mystery-man.svg")}" alt="${esc(actorName)}"/></div>
     <div class="eru-coin-wrap">
       <div class="eru-coin eru-coin--result eru-coin--${type}">
         ${D20_SVG}
@@ -730,7 +751,8 @@ function showFinalScreen(verdict){
   fin.className=`eru-final-overlay eru-final--${isPass?"pass":"fail"}`;
   fin.innerHTML=`<span class="eru-final-word">${isPass?"SUCCESS":"FAILURE"}</span>`;
   el.appendChild(fin);
-  setTimeout(sceneClose,5500);
+  clearTimeout(_finalCloseT);
+  _finalCloseT=setTimeout(sceneClose,5500);
 }
 
 function showGMPanel(){
@@ -759,7 +781,9 @@ function showGMPanel(){
 
   // Глобальні кнопки — тільки один раз внизу
   const footer=document.getElementById("eru-footer");
-  if(!footer||footer.querySelector(".eru-gm-actions"))return;
+  if(!footer||footer.querySelector(".eru-final-pass"))return;
+  // Прибираємо ранню Cancel-кнопку — її замінює повна панель
+  footer.querySelector("#eru-gm-early-cancel")?.closest(".eru-gm-actions")?.remove();
   const acts=document.createElement("div");
   acts.className="eru-gm-actions";
   acts.innerHTML=`
@@ -774,6 +798,7 @@ function showGMPanel(){
 
 function sceneClose(){
   stopAmbient();
+  clearTimeout(_finalCloseT);_finalCloseT=null;
   // Очистити contest state теж
   _contestState=null;
   _contestResults.a.clear();
@@ -812,15 +837,11 @@ function setupSocket(){
       }
       case "result":{
         const res=msg.payload;
-        const myActor=game.actors.get(res.actorId);
-        // Гравець-власник вже обробив локально — але все одно зберігаємо в _results
-        if(!(myActor?.isOwner && !game.user.isGM)){
-          _results.set(res.actorId,res);
-          applyResult(res);
-        }
-        // GM завжди бачить драму і перевіряє completeness
+        // Відправник не отримує власний emit, тож застосовуємо всім без винятків
+        // (інакше гравець-власник не бачив результат, коли за нього кидав ГМ)
+        _results.set(res.actorId,res);
+        applyResult(res);
         if(game.user.isGM){
-          _results.set(res.actorId,res);
           showPersonalDrama(res);
           // Затримка 950мс — слот-машина (900мс) має завершитись
           setTimeout(()=>{
@@ -849,13 +870,10 @@ function setupSocket(){
       }
       case "contestResult":{
         const res=msg.payload;
-        const myActor=game.actors.get(res.actorId);
-        if(!(myActor?.isOwner&&!game.user.isGM)){
-          _contestResults[res.side].set(res.actorId,res);
-          applyContestResult(res);
-        }
+        // Відправник не отримує власний emit — застосовуємо всім
+        _contestResults[res.side].set(res.actorId,res);
+        applyContestResult(res);
         if(game.user.isGM){
-          _contestResults[res.side].set(res.actorId,res);
           showPersonalDrama(res);
           const total=(_contestState?.sideA?.length??0)+(_contestState?.sideB?.length??0);
           setTimeout(()=>{
@@ -892,8 +910,8 @@ function buildActorGrid(actors, inputName=""){
   return actors.map(a=>`
     <label class="eru-a" data-id="${a.id}">
       <input type="checkbox" name="${inputName}" value="${a.id}"/>
-      <img src="${a.img||"icons/svg/mystery-man.svg"}"/>
-      <span>${a.name}</span>
+      <img src="${esc(a.img||"icons/svg/mystery-man.svg")}"/>
+      <span>${esc(a.name)}</span>
     </label>`).join("");
 }
 
@@ -1112,7 +1130,7 @@ class GroupRollDialog extends Application{
 // ── VTools ───────────────────────────────────────────────────────
 Hooks.once("vtools.ready", () => {
   VTools.register({
-    name:    "epic-rolls",
+    name:    "epic-rolls-ua",
     title:   "Group Roll",
     icon:    "fas fa-dice-d20",
     onClick: () => new GroupRollDialog().render(true),
@@ -1162,22 +1180,22 @@ function registerSettings(){
   });
   game.settings.register(MODULE_ID,"successMusic",{
     name:"Success Music",
-    hint:"Plays on success announcement. MP3/OGG. E.g.: modules/epic-rolls/sounds/success.mp3",
+    hint:"Plays on success announcement. MP3/OGG. E.g.: modules/epic-rolls-ua/sounds/success.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"failureMusic",{
     name:"Failure Music",
-    hint:"Plays on failure announcement. MP3/OGG. E.g.: modules/epic-rolls/sounds/failure.mp3",
+    hint:"Plays on failure announcement. MP3/OGG. E.g.: modules/epic-rolls-ua/sounds/failure.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"impactMusic",{
     name:"Impact Music",
-    hint:"Plays during the roll title reveal. E.g.: modules/epic-rolls/sounds/impact.mp3",
+    hint:"Plays during the roll title reveal. E.g.: modules/epic-rolls-ua/sounds/impact.mp3",
     scope:"world",config:true,type:String,default:"",
   });
   game.settings.register(MODULE_ID,"ambientMusic",{
     name:"Ambient Music (during rolls)",
-    hint:"Loops in background while players roll. Stops at result. E.g.: modules/epic-rolls/sounds/ambient.mp3",
+    hint:"Loops in background while players roll. Stops at result. E.g.: modules/epic-rolls-ua/sounds/ambient.mp3",
     scope:"world",config:true,type:String,default:"",
   });
 }
@@ -1218,6 +1236,7 @@ const _contestResults = { a: new Map(), b: new Map() };
 function contestOpen(payload) {
   document.getElementById("eru-scene")?.remove();
   document.getElementById("eru-impact")?.remove();
+  clearTimeout(_finalCloseT);_finalCloseT=null;
   _contestState = { ...payload };
   _contestResults.a.clear();
   _contestResults.b.clear();
@@ -1226,7 +1245,7 @@ function contestOpen(payload) {
   const { rt, sideA, sideB } = payload;
   const theme = CAT_THEME[rt?.cat ?? "raw"] ?? CAT_THEME.raw;
   const bgUrl = getSetting("bannerBg") || "";
-  const bannerImg = bgUrl || "modules/epic-rolls/assets/banner.jpg";
+  const bannerImg = bgUrl || "modules/epic-rolls-ua/assets/banner.jpg";
 
   // Назва: "Strength Check — Contest"
   const rollName = buildContestLabel(rt);
@@ -1312,9 +1331,9 @@ function addContestCard(actorId, actorName, img, side, totalCount) {
   card.dataset.side = side;
   card.dataset.count = totalCount;
   card.innerHTML = `
-    <div class="eru-card-name-top">${actorName}</div>
+    <div class="eru-card-name-top">${esc(actorName)}</div>
     <div class="eru-card-portrait">
-      <img src="${img || "icons/svg/mystery-man.svg"}" alt="${actorName}"/>
+      <img src="${esc(img || "icons/svg/mystery-man.svg")}" alt="${esc(actorName)}"/>
     </div>
     <div class="eru-coin-wrap" id="coin-${actorId}">
       <div class="eru-coin eru-coin--pending">${D20_SVG}</div>
@@ -1333,8 +1352,8 @@ function applyContestResult(result) {
   card.dataset.count = count;
   card.dataset.side = side;
   card.innerHTML = `
-    <div class="eru-card-name-top">${actorName}</div>
-    <div class="eru-card-portrait"><img src="${img || "icons/svg/mystery-man.svg"}" alt="${actorName}"/></div>
+    <div class="eru-card-name-top">${esc(actorName)}</div>
+    <div class="eru-card-portrait"><img src="${esc(img || "icons/svg/mystery-man.svg")}" alt="${esc(actorName)}"/></div>
     <div class="eru-coin-wrap">
       <div class="eru-coin eru-coin--result eru-coin--${type}">
         ${D20_SVG}
@@ -1378,7 +1397,8 @@ function showContestWinner(winner) {
     el.classList.add("eru--shake");
     setTimeout(()=>el.classList.remove("eru--shake"),600);
   }
-  setTimeout(sceneClose, 5000);
+  clearTimeout(_finalCloseT);
+  _finalCloseT = setTimeout(sceneClose, 5000);
 }
 
 // GM вирішує переможця або авто-підрахунок
