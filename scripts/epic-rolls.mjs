@@ -218,7 +218,12 @@ async function doRoll(actor, rt, adv, dis){
 
 // ── Кидок через системний діалог (A5E / dnd5e) ───
 async function doRollViaSystemDialog(actor, rt) {
-  return new Promise((resolve) => {
+  // Поки відкритий системний діалог — опускаємо сцену під вікна Foundry,
+  // інакше діалог може сховатися за повноекранним банером (залежить від теми/UI-модулів)
+  const sceneEl = document.getElementById("eru-scene");
+  sceneEl?.classList.add("eru-scene--sysdialog");
+  try {
+    return await new Promise((resolve) => {
     let settled = false;
     const settle = (val) => {
       if (settled) return;
@@ -227,7 +232,7 @@ async function doRollViaSystemDialog(actor, rt) {
       Hooks.off("createChatMessage", hookFn);
       resolve(val);
     };
-    const timeout = setTimeout(() => settle(null), 120000);
+    const timeout = setTimeout(() => settle(null), 300000);
 
     const hookFn = (msg) => {
       if (msg.speaker?.actor !== actor.id) return;
@@ -253,9 +258,15 @@ async function doRollViaSystemDialog(actor, rt) {
         }
         // Невелика пауза: деякі системи створюють повідомлення вже після resolve
         if (!callResult) setTimeout(() => settle(null), 400);
-      } catch(e) { settle(null); }
+      } catch(e) {
+        console.error(`${MODULE_ID} | system roll dialog error:`, e);
+        settle(null);
+      }
     })();
-  });
+    });
+  } finally {
+    sceneEl?.classList.remove("eru-scene--sysdialog");
+  }
 }
 
 // ── Слот-машина ───────────────────────────────────
