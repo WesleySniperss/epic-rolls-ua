@@ -33,12 +33,17 @@ const ROLL_TYPES = [
   { id:"slt-skill",  label:"Sleight of Hand",       cat:"skill",   key:"slt" },
   { id:"ste-skill",  label:"Stealth",               cat:"skill",   key:"ste" },
   { id:"sur-skill",  label:"Survival",              cat:"skill",   key:"sur" },
+  // Навички, що існують лише в A5E
+  { id:"cul-skill",  label:"Culture",               cat:"skill",   key:"cul", sys:"a5e" },
+  { id:"eng-skill",  label:"Engineering",           cat:"skill",   key:"eng", sys:"a5e" },
+  { id:"sci-skill",  label:"Science",               cat:"skill",   key:"sci", sys:"a5e" },
 ];
 
 const SKILL_ABILITY = {
   acr:"dex",ani:"wis",arc:"int",ath:"str",dec:"cha",his:"int",
   ins:"wis",itm:"cha",inv:"int",med:"wis",nat:"int",prc:"wis",
-  prf:"cha",per:"cha",rel:"int",slt:"dex",ste:"dex",sur:"wis"
+  prf:"cha",per:"cha",rel:"int",slt:"dex",ste:"dex",sur:"wis",
+  cul:"int",eng:"int",sci:"int" // A5E-only
 };
 
 const CAT_THEME = {
@@ -100,7 +105,7 @@ function isSoundMuted(){ return !getSetting("soundEnabled") || getSetting("impac
 async function playFoundrySound(path, volume=0.8, loop=false){
   if(!path||isSoundMuted())return null;
   try{
-    // Foundry v13: AudioHelper.play returns Promise<Sound>
+    // v13/v14: foundry.audio.AudioHelper.play → Promise<Sound> (глобального AudioHelper у v14 вже нема)
     const api = foundry?.audio?.AudioHelper ?? window.AudioHelper;
     const sound = await api.play({
       src: path,
@@ -349,7 +354,6 @@ async function startAmbient(){
   if(!url||isSoundMuted())return;
   stopAmbient();
   try{
-    // Foundry v12/v13: AudioHelper.play повертає Sound об'єкт
     const sound = await foundry.audio.AudioHelper.play({
       src: url, volume: 0.01, loop: true, autoplay: true
     }, false);
@@ -910,10 +914,12 @@ function buildRollTypeSelect(){
     ["── Saving Throws ──", r=>r.cat==="save"],
     ["── Skills ──",        r=>r.cat==="skill"],
   ];
+  // Типи, прив'язані до конкретної системи, показуємо лише в ній
+  const forSystem = r => !r.sys || r.sys === game.system.id;
   let sel="";
   for(const[lbl,fn]of groups){
     sel+=`<optgroup label="${lbl}">`;
-    ROLL_TYPES.filter(fn).forEach(r=>sel+=`<option value="${r.id}">${r.label}</option>`);
+    ROLL_TYPES.filter(r=>fn(r)&&forSystem(r)).forEach(r=>sel+=`<option value="${r.id}">${r.label}</option>`);
     sel+=`</optgroup>`;
   }
   return sel;
@@ -932,15 +938,18 @@ function buildActorGrid(actors, inputName=""){
 // ─────────────────────────────────────────────────────────────────
 //  GroupRollDialog — Group Roll + Contest в одному діалозі
 // ─────────────────────────────────────────────────────────────────
-class GroupRollDialog extends Application{
-  static get defaultOptions(){
-    return foundry.utils.mergeObject(super.defaultOptions,{
-      id:"eru-gm-dialog", title:"Epic Rolls UA",
-      width:520, height:"auto", resizable:false, classes:["eru-dialog"],
-    });
-  }
+const AppV2 = foundry.applications?.api?.ApplicationV2;
 
-  async _renderInner(){
+class GroupRollDialog extends AppV2{
+  static DEFAULT_OPTIONS = {
+    id: "eru-gm-dialog",
+    classes: ["eru-dialog", "themed", "theme-dark"],
+    tag: "div",
+    window: { title: "Epic Rolls UA", resizable: false, contentClasses: ["eru-dialog-content"] },
+    position: { width: 520, height: "auto" },
+  };
+
+  async _renderHTML(){
     const sceneActorIds=new Set((canvas?.tokens?.placeables??[]).map(t=>t.actor?.id).filter(Boolean));
     const actors=game.actors.filter(a=>["character","npc"].includes(a.type)&&sceneActorIds.has(a.id));
     const sel=buildRollTypeSelect();
@@ -1029,12 +1038,15 @@ class GroupRollDialog extends Application{
         </div>
 
       </div>`;
-    return $(div);
+    return div;
   }
 
-  activateListeners(jq){
-    super.activateListeners(jq);
-    const r=jq[0];
+  _replaceHTML(result, content){
+    content.replaceChildren(result);
+  }
+
+  _onRender(){
+    const r=this.element;
 
     // Таби
     r.querySelectorAll(".eru-tab").forEach(tab=>{
@@ -1141,6 +1153,22 @@ class GroupRollDialog extends Application{
 }
 
 // ── Кнопка в лівій панелі ─────────────────────────
+// Запасна кнопка в панелі керування токенами — щоб модуль лишався
+// доступним, навіть якщо VTools вимкнено/відсутній (v13+ формат: об'єкти)
+Hooks.on("getSceneControlButtons", controls => {
+  if (game.modules.get("vtools")?.active || !game.user.isGM) return;
+  const tokens = controls.tokens ?? controls.token;
+  if (!tokens?.tools) return;
+  tokens.tools["epic-rolls-ua"] = {
+    name: "epic-rolls-ua",
+    title: "Epic Rolls — Group Roll",
+    icon: "fas fa-dice-d20",
+    button: true,
+    order: 100,
+    onChange: () => new GroupRollDialog().render(true),
+  };
+});
+
 // ── VTools ───────────────────────────────────────────────────────
 Hooks.once("vtools.ready", () => {
   VTools.register({

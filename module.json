@@ -2,11 +2,10 @@
   "id": "epic-rolls-ua",
   "title": "Epic Rolls",
   "description": "Cinematic group rolls with live results for all players.",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "compatibility": {
-    "minimum": "12",
-    "verified": "13",
-    "maximum": "13"
+    "minimum": "13",
+    "verified": "14"
   },
   "authors": [
     {
